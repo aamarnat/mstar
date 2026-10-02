@@ -1081,12 +1081,28 @@ class Cosmos3Model(Model):
                 data = encode_mp4_pyav(x.permute(1, 2, 3, 0).cpu(), fps=fps, crf=18, preset=preset)
             return data
         if modality == "action":
-            # The predicted action latents [1, chunk, action_dim] -> [chunk,
-            # action_dim] float32 bytes. Columns beyond the request's
-            # raw_action_dim are zero padding (the client keeps the first
-            # raw_action_dim, the real action width for its embodiment).
-            x = output[0] if output.ndim == 3 else output
-            return x.detach().to(torch.float32).cpu().numpy().tobytes()
+            # Slice padded action width to raw_action_dim and keep the batch
+            # axis. Bytes are [batch, chunk, raw_action_dim] float32.
+            mk = request_kwargs if isinstance(request_kwargs, dict) else {}
+            raw = mk.get("raw_action_dim")
+            if raw is None:
+                raise ValueError("Cosmos3 action postprocess requires request raw_action_dim")
+            raw = int(raw)
+            x = output.detach()
+            if x.ndim == 2:
+                x = x.unsqueeze(0)
+            if x.ndim != 3:
+                raise ValueError(
+                    f"Cosmos3 action tensor must be [batch, chunk, dim], got {tuple(x.shape)}"
+                )
+            if int(x.shape[-1]) < raw:
+                raise ValueError(
+                    f"Cosmos3 action dim {int(x.shape[-1])} is narrower than raw_action_dim {raw}"
+                )
+            x = x[:, :, :raw].to(torch.float32).contiguous()
+            mk["_action_output_shape"] = [int(d) for d in x.shape]
+            mk["_action_output_dtype"] = "float32"
+            return x.cpu().numpy().tobytes()
         if modality == "audio":
             # The audio decoder emits a [channels, samples] waveform in [-1, 1];
             # the serving convention for audio is headerless interleaved 16-bit

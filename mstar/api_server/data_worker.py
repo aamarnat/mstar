@@ -770,6 +770,15 @@ class PreprocessWorkerThread:
                                     "video_frame payload length does not match its RGB24 shape: "
                                     f"expected {expected_bytes} bytes, got {len(postprocessed)}"
                                 )
+                        elif modality == "action":
+                            action_kw = self.request_model_kwargs.get(request_id) or {}
+                            action_shape = action_kw.get("_action_output_shape")
+                            if action_shape is not None:
+                                chunk_metadata = {
+                                    **chunk_metadata,
+                                    "shape": list(action_shape),
+                                    "dtype": action_kw.get("_action_output_dtype", "float32"),
+                                }
 
                         if self.enable_nvtx:
                             profiler.range_push("dataworker.queue_output")

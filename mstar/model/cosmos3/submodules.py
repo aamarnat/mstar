@@ -1252,8 +1252,10 @@ class Cosmos3DiTSubmodule(ARNodeSubmodule):
             # The text prefix is written once and committed; the denoise steps
             # read it frozen for the rest of the request. Both guidance
             # branches prefill together under one combined plan when present.
-            # Always paged: the denoise steps read this K/V back out of the
-            # pages, which the dense backend never writes.
+            # ``attn`` is paged FlashInfer for dense_gen/flashinfer: denoise
+            # reads that K/V back out of the pages, which the dense backend
+            # never writes. ``aiter_fmha`` uses the same resource key but the
+            # manager keeps the prefix itself and does not scatter pages.
             cfg = bool(inputs[0].kwargs.get("cfg"))
             labels = (COND_LABEL, UNCOND_LABEL) if cfg else (COND_LABEL,)
             return SubmoduleStep(
@@ -2083,6 +2085,11 @@ class Cosmos3DiTSubmodule(ARNodeSubmodule):
         falling back to the eager path."""
         disable_env = os.environ.get("COSMOS3_DISABLE_CUDA_GRAPH")
         disabled = bool(disable_env) if disable_env is not None else not self.config.cuda_graph
+        # aiter_fmha concatenates the text prefix in the attention manager.
+        # That allocation cannot be replayed from a captured graph, and this
+        # backend does not keep a paged wrapper to capture instead.
+        if self.config.attention_backend == "aiter_fmha":
+            return []
         if self.transformer is None or disabled:
             return []
         res_env = os.environ.get("COSMOS3_GEN_CAPTURE_RES")
@@ -3033,6 +3040,10 @@ class Cosmos3ReasonerSubmodule(ARNodeSubmodule):
         """Capture the decode step (one token per request) per batch-size
         bucket; prefills run eager (they are one-shot and shape-varied)."""
         if self.transformer is None or os.environ.get("COSMOS3_DISABLE_CUDA_GRAPH"):
+            return []
+        # The reasoner shares the DiT's attn resource. aiter_fmha is eager-only:
+        # prefix concatenation allocates, so a captured decode cannot replay.
+        if self.config.attention_backend == "aiter_fmha":
             return []
         bs_env = os.environ.get("COSMOS3_REASONER_CAPTURE_BS")
         sizes = [int(x) for x in bs_env.split(",")] if bs_env else list(self.decode_capture_batch_sizes)

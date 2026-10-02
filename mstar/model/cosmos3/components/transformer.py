@@ -989,8 +989,9 @@ class Cosmos3OmniTransformer(nn.Module):
         K/V under ``label`` (the plan key the step declared). ``position_ids``
         are the text segment's 3D mRoPE ids ([3, und_len]).
 
-        Always runs over the paged attention resource: the denoise steps read
-        this K/V back out of the pages, so it has to land there."""
+        Runs on the ``attn`` resource. Paged backends write this K/V into
+        pages so denoise can read it back. ``aiter_fmha`` keeps the same K/V
+        in the attention manager and does not write pages."""
         und_seq = self.embed_tokens(input_ids)
         cos, sin = self._rotary(position_ids, und_seq.device, und_seq.dtype)
         # Its own callable, not the GEN one: UND always runs on the bound paged

@@ -20,6 +20,8 @@ class AttnBackend(Enum):
     DENSE = "dense"
     FLEX = "flex"
     XPU_PAGED = "xpu_paged"
+    # Dense AMD AITER flash_attn_func. No paged KV write.
+    AITER_FMHA = "aiter_fmha"
 
 
 @dataclass

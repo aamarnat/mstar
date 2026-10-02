@@ -295,7 +295,15 @@ class Cosmos3Model(Model):
         ``attention_backend="flashinfer"`` skips the dense spec, which leaves
         every step on the paged path.
 
-        The two specs share one ``PagedKVConfig`` object on purpose: a deployment
+        ``attention_backend="aiter_fmha"`` points the shared ``attn`` spec at
+        AiterFmhaAttentionManager. Prefill and denoise both call
+        ``aiter.flash_attn_func``. The text prefix is stored in that backend,
+        not in pages, so there is no FlashInfer wrapper and no page-plane K/V
+        write. CUDA-graph capture is skipped for this choice. The reasoner has
+        no attention spec of its own; when it is enabled it stays on this same
+        ``attn`` resource and only adds the sampler.
+
+        The specs share one ``PagedKVConfig`` object on purpose: a deployment
         that resizes the cache through ``apply_yaml_overrides`` has to resize
         what the wrappers are planned against too.
         """
@@ -306,9 +314,21 @@ class Cosmos3Model(Model):
             max_seq_len=self.config.max_position_embeddings,
             num_qo_heads=self.config.num_attention_heads,
         )
+        name = self.config.attention_backend
+        if name == "aiter_fmha":
+            attn_backend = AttnBackend.AITER_FMHA
+            logger.info("Cosmos3 attention_backend=aiter_fmha (AiterFmhaAttentionManager)")
+        elif name in ("dense_gen", "flashinfer"):
+            attn_backend = AttnBackend.FLASHINFER
+        else:
+            raise ValueError(
+                f"Unknown Cosmos3 attention_backend {name!r} "
+                "(expected 'dense_gen', 'flashinfer', or 'aiter_fmha')"
+            )
         # The reasoner is the same transformer (the DiT's understanding
-        # pathway) run as a text model, so it shares the pool and the paged
-        # backend; only its sampler is its own.
+        # pathway) run as a text model, so it shares the pool and this attn
+        # spec; only its sampler is its own. ``aiter_fmha`` changes the
+        # spec's backend, not which nodes hold it.
         kv_nodes = {DIT_NODE, REASONER_NODE} if self._reasoner_enabled() else {DIT_NODE}
         specs: list[NodeResourceSpec] = [
             KVSpec(resource_key=KV_CACHE, nodes=kv_nodes, config=kv_config),
@@ -316,7 +336,7 @@ class Cosmos3Model(Model):
                 resource_key=ATTN,
                 nodes=kv_nodes,
                 config=AttentionConfig(
-                    kv_cache=KV_CACHE, backend=AttnBackend.FLASHINFER,
+                    kv_cache=KV_CACHE, backend=attn_backend,
                 ),
             ),
         ]
@@ -326,7 +346,7 @@ class Cosmos3Model(Model):
                 vocab_size=self.config.vocab_size,
                 enable_repetion_penalty=True,
             ))
-        if self.config.attention_backend == "dense_gen":
+        if name == "dense_gen":
             specs.append(AttentionSpec(
                 resource_key=ATTN_GEN,
                 nodes={DIT_NODE},
@@ -334,12 +354,6 @@ class Cosmos3Model(Model):
                     kv_cache=KV_CACHE, backend=AttnBackend.DENSE,
                 ),
             ))
-        elif self.config.attention_backend != "flashinfer":
-            raise ValueError(
-                f"Unknown Cosmos3 attention_backend "
-                f"{self.config.attention_backend!r} "
-                "(expected 'dense_gen' or 'flashinfer')"
-            )
         return specs
 
     def get_request_resource_configs(

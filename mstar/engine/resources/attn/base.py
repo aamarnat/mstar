@@ -2,8 +2,8 @@
 custom op every backend attends through, and the workspace pool.
 
 The backends themselves live beside this — `flashinfer`, `cross`, `dense`,
-`flex` — and `AttentionManager.build` reaches them by deferred import, so
-naming a backend in a spec does not load the others.
+`flex`, `aiter_fmha` — and `AttentionManager.build` reaches them by deferred
+import, so naming a backend in a spec does not load the others.
 """
 
 import logging
@@ -27,6 +27,9 @@ _BACKEND_KV_CONFIG: dict[AttnBackend, type[KVConfig]] = {
     AttnBackend.FLASHINFER: PagedKVConfig,
     AttnBackend.FLEX: RingKVConfig,
     AttnBackend.XPU_PAGED: PagedKVConfig,
+    # requires_kv_write is false: the manager takes a KVConfig and never
+    # writes page planes, so the base class is what the check accepts.
+    AttnBackend.AITER_FMHA: KVConfig,
 }
 
 
@@ -63,6 +66,20 @@ class AttentionManager(AttentionResource):
         # `shard` lives on the KVConfig base, so this is unchanged for both.
         if info.joint_comm_group is not None:
             kv_config.shard(info.joint_comm_group.world_size)
+        if backend == AttnBackend.AITER_FMHA:
+            # Do not fall through to FlashInfer. This backend never builds a
+            # paged wrapper and never writes page planes.
+            from mstar.engine.resources.attn.aiter_fmha import (
+                AiterFmhaAttentionManager,
+            )
+
+            return AiterFmhaAttentionManager(
+                kv_cache=spec.config.kv_cache,
+                device=info.device,
+                dtype=info.kv_dtype,
+                kv_config=kv_config,
+            )
+
         if backend == AttnBackend.DENSE:
             # A dense backend needs the FlashAttention-3 kernel; where the
             # wheel does not match the installed torch/CUDA build, degrade to

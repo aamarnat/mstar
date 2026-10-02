@@ -458,6 +458,9 @@ class Cosmos3Config:
     # instead: one varlen pass over [frozen text prefix | fresh gen tokens],
     # skipping the paged path's per-step K/V write and wrapper plan.
     # "flashinfer" declares only the paged backend, so every step uses it.
+    # "aiter_fmha" declares only the dense AITER flash_attn_func backend.
+    # Prefill and denoise both use it, and neither writes paged K/V. It is
+    # eager-only (leave cuda_graph false). It is not the default.
     attention_backend: str = "dense_gen"
 
     # ----- sub-configs -----

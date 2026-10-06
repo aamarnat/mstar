@@ -1,0 +1,24 @@
+model: "cosmos3_droid"
+max_seq_len: 8192
+
+resources:
+  kv:
+    # aiter_fmha does not write paged K/V. This is the pool size of the 1-GPU run.
+    max_num_pages: 64
+
+model_kwargs:
+  # Eager AITER flash_attn_func. cuda_graph stays false: the backend
+  # concatenates the text prefix and refuses a capture lease.
+  cuda_graph: false
+  compile_denoise: true
+  attention_backend: aiter_fmha
+  enable_sound: false
+  num_inference_steps_action: 30
+  guidance_scale_action: 1.0
+  flow_shift_action: 5.0
+
+node_groups:
+  - node_names: ["dit"]
+    ranks: [0]
+  - node_names: ["vae_encoder", "vae_decoder"]
+    ranks: [0]

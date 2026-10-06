@@ -4,10 +4,10 @@ M* (`attention_backend: aiter_fmha`) against vLLM-Omni on one AMD MI355X. Both s
 
 The image is official `rocm/pytorch:rocm7.14.1_ubuntu24.04_py3.12_pytorch_release_2.12.0` (torch 2.12.0). It rebuilds torchvision's `image.so` with libpng so `torchvision.io.decode_image` works, and installs vLLM 0.28.0, vLLM-Omni 0.28.0, and amd-aiter 0.1.21. M* is cloned from `https://github.com/aamarnat/mstar` branch `mi355x-aiter-fmha`. The Dockerfile requires these commits to be ancestors of that branch tip, and does not re-apply them:
 
-- `7758d630852dfcdd5c8d9b19db1a58e63821bf8f` slices the action output to `raw_action_dim`
-- `98a848579f64aba8a5c60093970c5526abb514e9` adds the direct AITER FMHA backend
+- `9e9f3ac9085f53b7ea7b533bfa95dbdfd2b7e21c` slices the action output to `raw_action_dim`
+- `f0223c0b39580a212a9c8f03d9295126bf1752b2` adds the direct AITER FMHA backend
 
-Those commits sit on `cc8def9f11288d7f2f33ec9e65c39ad4e08ccb53`. `PYTORCH_ROCM_ARCH` is set only inside the vLLM compile step. It is not an image environment variable.
+Those commits sit on `166ddb089ebdc8044a66a72d7ff401ae53398c2e`. `PYTORCH_ROCM_ARCH` is set only inside the vLLM compile step. It is not an image environment variable.
 
 The branch yaml `configs/cosmos3_droid.yaml` is a different serving setup. This run uses `examples/cosmos3-mi355x-repro/cosmos3-droid-aiter-fmha.yaml`.
 
@@ -36,7 +36,7 @@ The branch yaml `configs/cosmos3_droid.yaml` is a different serving setup. This 
 - `Dockerfile`
   - This builds the M* and vLLM-Omni stacks from the official ROCm PyTorch image named above.
   - The M* clone is `https://github.com/aamarnat/mstar` branch `mi355x-aiter-fmha`.
-  - The build checks that `98a848579f64aba8a5c60093970c5526abb514e9` and `7758d630852dfcdd5c8d9b19db1a58e63821bf8f` are ancestors of `HEAD`.
+  - The build checks that `f0223c0b39580a212a9c8f03d9295126bf1752b2` and `9e9f3ac9085f53b7ea7b533bfa95dbdfd2b7e21c` are ancestors of `HEAD`.
 
 - `run_bench.sh`
   - This is the shell script for the unprofiled benchmark.

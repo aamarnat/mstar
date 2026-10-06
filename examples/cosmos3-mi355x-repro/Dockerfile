@@ -21,11 +21,11 @@
 #
 # M* is cloned from https://github.com/aamarnat/mstar branch mi355x-aiter-fmha.
 # The build requires these implementation commits to be ancestors of HEAD:
-#   7758d630852dfcdd5c8d9b19db1a58e63821bf8f
+#   9e9f3ac9085f53b7ea7b533bfa95dbdfd2b7e21c
 #          cosmos3: slice action output to raw action dim
-#   98a848579f64aba8a5c60093970c5526abb514e9
+#   f0223c0b39580a212a9c8f03d9295126bf1752b2
 #          attn: add direct AITER FMHA backend for ROCm
-# They sit on cc8def9f11288d7f2f33ec9e65c39ad4e08ccb53. A later branch tip
+# They sit on 166ddb089ebdc8044a66a72d7ff401ae53398c2e. A later branch tip
 # is accepted. The clone already contains that backend and the action-width
 # slice. This image does not re-apply them.
 #
@@ -42,8 +42,8 @@ ARG VLLM_OMNI_VERSION=0.28.0+rocm
 ARG FLASHINFER_REF=v0.6.18+amd.1
 ARG MSTAR_REPO=https://github.com/aamarnat/mstar.git
 ARG MSTAR_REF=mi355x-aiter-fmha
-ARG MSTAR_COMMIT=7758d630852dfcdd5c8d9b19db1a58e63821bf8f
-ARG MSTAR_ATTN_COMMIT=98a848579f64aba8a5c60093970c5526abb514e9
+ARG MSTAR_COMMIT=9e9f3ac9085f53b7ea7b533bfa95dbdfd2b7e21c
+ARG MSTAR_ATTN_COMMIT=f0223c0b39580a212a9c8f03d9295126bf1752b2
 ARG AITER_VERSION=0.1.21+rocm7.2.manylinux.2.28
 ARG AITER_WHEEL_URL=https://github.com/ROCm/aiter/releases/download/v0.1.21/amd_aiter-0.1.21+rocm7.2.manylinux.2.28-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
 
